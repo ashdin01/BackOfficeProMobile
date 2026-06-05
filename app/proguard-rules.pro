@@ -1,0 +1,3 @@
+-keep class au.com.harcourtapples.bopro.api.models.** { *; }
+-keepattributes Signature
+-keepattributes *Annotation*
