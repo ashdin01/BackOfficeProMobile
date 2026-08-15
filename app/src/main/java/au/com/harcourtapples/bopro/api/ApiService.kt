@@ -56,4 +56,15 @@ interface ApiService {
         @Path("po_id") poId: Int,
         @Body request: ReceiveRequest
     ): Response<ReceiveResponse>
+
+    // ── Order Prep ─────────────────────────────────────────────────────────────
+
+    @GET("api/v1/suppliers")
+    suspend fun getSuppliers(): Response<List<Supplier>>
+
+    @GET("api/v1/order-prep/{supplierId}/items")
+    suspend fun getOrderPrepItems(@Path("supplierId") supplierId: Int): Response<List<OrderPrepItem>>
+
+    @POST("api/v1/order-prep/draft")
+    suspend fun createOrderPrepDraft(@Body request: CreateOrderPrepDraftRequest): Response<CreateOrderPrepDraftResponse>
 }

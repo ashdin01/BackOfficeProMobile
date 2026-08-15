@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.dp
 fun HomeScreen(
     onStocktake: () -> Unit,
     onReceive: () -> Unit,
+    onOrderPrep: () -> Unit,
     onSettings: () -> Unit
 ) {
     Scaffold(
@@ -59,6 +61,14 @@ fun HomeScreen(
                 title = "Receive Stock",
                 description = "Scan incoming deliveries against\na purchase order.",
                 onClick = onReceive,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            FeatureCard(
+                icon = { Icon(Icons.Default.ShoppingCart, null, modifier = Modifier.size(40.dp)) },
+                title = "Prepare Order",
+                description = "Pick a supplier, count what's on hand,\nand build a market order from min/max levels.",
+                onClick = onOrderPrep,
                 modifier = Modifier.fillMaxWidth()
             )
         }

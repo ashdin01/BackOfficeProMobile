@@ -9,7 +9,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import au.com.harcourtapples.bopro.api.ApiClient
+import au.com.harcourtapples.bopro.api.models.Supplier
 import au.com.harcourtapples.bopro.ui.home.HomeScreen
+import au.com.harcourtapples.bopro.ui.orderprep.prep.OrderPrepScreen
+import au.com.harcourtapples.bopro.ui.orderprep.suppliers.SupplierListScreen
 import au.com.harcourtapples.bopro.ui.receive.list.PoListScreen
 import au.com.harcourtapples.bopro.ui.receive.receive.ReceiveScreen
 import au.com.harcourtapples.bopro.ui.settings.SettingsScreen
@@ -36,14 +39,16 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val nav = rememberNavController()
+                var selectedSupplier by remember { mutableStateOf<Supplier?>(null) }
 
                 NavHost(nav, startDestination = "home") {
 
                     composable("home") {
                         HomeScreen(
-                            onStocktake = { nav.navigate("stocktake/sessions") },
-                            onReceive   = { nav.navigate("receive/list") },
-                            onSettings  = { nav.navigate("settings") }
+                            onStocktake  = { nav.navigate("stocktake/sessions") },
+                            onReceive    = { nav.navigate("receive/list") },
+                            onOrderPrep  = { nav.navigate("orderprep/suppliers") },
+                            onSettings   = { nav.navigate("settings") }
                         )
                     }
 
@@ -109,6 +114,31 @@ class MainActivity : ComponentActivity() {
                             serverUrl = serverUrl,
                             apiKey    = apiKey,
                             onBack    = { nav.popBackStack() }
+                        )
+                    }
+
+                    // ── Order Prep ─────────────────────────────────────────────
+
+                    composable("orderprep/suppliers") {
+                        SupplierListScreen(
+                            serverUrl        = serverUrl,
+                            apiKey           = apiKey,
+                            onSelectSupplier = { supplier ->
+                                selectedSupplier = supplier
+                                nav.navigate("orderprep/items")
+                            },
+                            onBack = { nav.popBackStack() }
+                        )
+                    }
+
+                    composable("orderprep/items") {
+                        val supplier = selectedSupplier ?: return@composable
+                        OrderPrepScreen(
+                            supplierId   = supplier.id,
+                            supplierName = supplier.name,
+                            serverUrl    = serverUrl,
+                            apiKey       = apiKey,
+                            onBack       = { nav.popBackStack() }
                         )
                     }
                 }

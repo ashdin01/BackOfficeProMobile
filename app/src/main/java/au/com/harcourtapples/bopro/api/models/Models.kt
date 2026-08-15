@@ -91,3 +91,35 @@ data class ReceiveResponse(
     val status: String,
     @SerializedName("lines_received") val linesReceived: Int
 )
+
+// ── Order Prep ────────────────────────────────────────────────────────────────
+
+data class Supplier(val id: Int, val code: String, val name: String)
+
+data class OrderPrepItem(
+    val barcode: String,
+    val description: String,
+    val unit: String,
+    @SerializedName("pack_qty")          val packQty: Int,
+    @SerializedName("pack_unit")         val packUnit: String,
+    @SerializedName("reorder_point")     val reorderPoint: Double,
+    @SerializedName("reorder_max")       val reorderMax: Double,
+    @SerializedName("cost_price")        val costPrice: Double,
+    @SerializedName("on_hand")           val onHand: Double,
+    @SerializedName("last_ordered_qty")  val lastOrderedQty: Double?,
+    @SerializedName("last_ordered_date") val lastOrderedDate: String
+)
+
+data class OrderPrepLine(val barcode: String, val cartons: Double)
+
+data class CreateOrderPrepDraftRequest(
+    @SerializedName("supplier_id") val supplierId: Int,
+    val notes: String = "",
+    val lines: List<OrderPrepLine>
+)
+
+data class CreateOrderPrepDraftResponse(
+    @SerializedName("po_id")      val poId: Int,
+    @SerializedName("po_number")  val poNumber: String,
+    @SerializedName("line_count") val lineCount: Int
+)
