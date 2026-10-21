@@ -98,7 +98,7 @@ fun ScanScreen(
 }
 
 @Composable
-fun CameraPreview(isAnalyzing: Boolean, onBarcodeDetected: (String) -> Unit) {
+fun CameraPreview(isAnalyzing: Boolean, includeCartonFormats: Boolean = false, onBarcodeDetected: (String) -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
@@ -115,7 +115,7 @@ fun CameraPreview(isAnalyzing: Boolean, onBarcodeDetected: (String) -> Unit) {
                 .setTargetResolution(android.util.Size(1280, 720))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build().also {
-                    it.setAnalyzer(executor, BarcodeAnalyzer { barcode -> callbackRef.value(barcode) })
+                    it.setAnalyzer(executor, BarcodeAnalyzer(includeCartonFormats) { barcode -> callbackRef.value(barcode) })
                 }
             try {
                 cameraProvider.unbindAll()

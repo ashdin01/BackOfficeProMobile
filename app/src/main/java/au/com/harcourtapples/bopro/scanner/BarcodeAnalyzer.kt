@@ -10,11 +10,18 @@ import com.google.zxing.NotFoundException
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 
-class BarcodeAnalyzer(private val onDetected: (String) -> Unit) : ImageAnalysis.Analyzer {
+class BarcodeAnalyzer(
+    includeCartonFormats: Boolean = false,
+    private val onDetected: (String) -> Unit
+) : ImageAnalysis.Analyzer {
 
     private val reader = MultiFormatReader().apply {
         setHints(mapOf(
-            DecodeHintType.POSSIBLE_FORMATS to listOf(BarcodeFormat.EAN_13, BarcodeFormat.EAN_8),
+            DecodeHintType.POSSIBLE_FORMATS to buildList {
+                add(BarcodeFormat.EAN_13); add(BarcodeFormat.EAN_8)
+                // Outer-carton labels: GTIN-14 is printed as ITF-14 (or Code 128)
+                if (includeCartonFormats) { add(BarcodeFormat.ITF); add(BarcodeFormat.CODE_128) }
+            },
             DecodeHintType.TRY_HARDER to true
         ))
     }

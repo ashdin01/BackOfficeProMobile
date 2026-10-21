@@ -51,6 +51,12 @@ interface ApiService {
     @GET("api/v1/purchase-orders/{po_number}")
     suspend fun getPurchaseOrder(@Path("po_number") poNumber: String): Response<PurchaseOrder>
 
+    @POST("api/v1/purchase-orders/{po_id}/counts")
+    suspend fun savePurchaseOrderCounts(
+        @Path("po_id") poId: Int,
+        @Body request: CountsRequest
+    ): Response<CountsResponse>
+
     @POST("api/v1/purchase-orders/{po_id}/receive")
     suspend fun receivePurchaseOrder(
         @Path("po_id") poId: Int,

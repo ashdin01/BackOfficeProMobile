@@ -2,6 +2,7 @@ package au.com.harcourtapples.bopro.ui.receive.receive
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -44,13 +45,12 @@ fun ReceiveScreen(
     LaunchedEffect(poNumber, serverUrl, apiKey) { vm.loadPo(serverUrl, apiKey, poNumber) }
 
     val scanning = state.scan is LineScan.Active ||
-                   state.scan is LineScan.Found  ||
                    state.scan is LineScan.NotOnOrder
 
     Box(Modifier.fillMaxSize()) {
         if (scanning) {
             // ── Camera overlay ────────────────────────────────────────────────
-            CameraPreview(isAnalyzing = state.scan is LineScan.Active, onBarcodeDetected = { vm.onBarcodeDetected(it) })
+            CameraPreview(isAnalyzing = state.scan is LineScan.Active, includeCartonFormats = true, onBarcodeDetected = { vm.onBarcodeDetected(it) })
 
             Box(Modifier.fillMaxSize()) {
                 Box(Modifier.size(260.dp).align(Alignment.Center).border(2.dp, Color.White, RoundedCornerShape(8.dp)))
@@ -61,26 +61,28 @@ fun ReceiveScreen(
             }
 
             if (state.scan is LineScan.Active) {
-                Text("Scan a barcode on the delivery", color = Color.White,
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp)
-                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 16.dp, vertical = 8.dp))
+                val flash = state.lastScan
+                Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp, start = 16.dp, end = 16.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (flash == null) {
+                        Text("Scan a carton or item barcode", color = Color.White)
+                    } else {
+                        Text("+${flash.added}${if (flash.isCarton) " (carton)" else ""} · ${flash.description}",
+                            color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2)
+                        Text("Counted so far: ${flash.total} units", color = Color.White)
+                    }
+                }
             }
 
-            when (val scan = state.scan) {
-                is LineScan.Found -> LineQtySheet(
-                    line = scan.line,
-                    currentQty = scan.alreadyReceived,
-                    onConfirm = { qty -> vm.setLineQty(scan.line.id, qty) },
-                    onCancel  = { vm.dismissScan() }
-                )
-                is LineScan.NotOnOrder -> BottomSheetContainer {
+            (state.scan as? LineScan.NotOnOrder)?.let { scan ->
+                BottomSheetContainer {
                     Text("Not on this order", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text("Barcode ${scan.barcode} is not on PO ${state.po?.poNumber ?: ""}.",
                         style = MaterialTheme.typography.bodyMedium)
                     Button(onClick = { vm.dismissScan() }, modifier = Modifier.fillMaxWidth()) { Text("OK — continue scanning") }
                 }
-                else -> {}
             }
         } else {
             // ── Normal PO detail view ─────────────────────────────────────────
@@ -105,7 +107,7 @@ fun ReceiveScreen(
                 },
                 bottomBar = {
                     if (state.po != null && state.submitResult == null) {
-                        val hasQtys = state.receivedQtys.any { (_, qty) -> qty > 0 }
+                        val hasQtys = true  // saving an empty count clears staged counts
                         Surface(shadowElevation = 8.dp) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
@@ -125,8 +127,8 @@ fun ReceiveScreen(
                                         Spacer(Modifier.width(8.dp))
                                         Text("Submitting…")
                                     } else {
-                                        val receivedCount = state.receivedQtys.count { (_, qty) -> qty > 0 }
-                                        Text("Submit Receipt ($receivedCount line${if (receivedCount != 1) "s" else ""})")
+                                        val countedLines = state.countedUnits.count { (_, u) -> u > 0 }
+                                        Text("Save Count ($countedLines line${if (countedLines != 1) "s" else ""})")
                                     }
                                 }
                             }
@@ -153,9 +155,9 @@ fun ReceiveScreen(
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                             Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.height(16.dp))
-                            Text("Receipt Submitted!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Text("Count Saved!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(8.dp))
-                            Text("${result.linesReceived} line${if (result.linesReceived != 1) "s" else ""} received\nPO status: ${result.status}",
+                            Text("${result.linesSaved} line${if (result.linesSaved != 1) "s" else ""} counted.\nStock and PO status are unchanged — open the PO in BackOfficePro to confirm the receipt, check costs and match the invoice.",
                                 textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(24.dp))
                             Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Done") }
@@ -165,7 +167,7 @@ fun ReceiveScreen(
                         val result = state.submitResult as SubmitResult.Failure
                         Column(Modifier.padding(padding).fillMaxSize().padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            Text("Submission failed", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)
+                            Text("Save failed", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.error)
                             Spacer(Modifier.height(8.dp))
                             Text(result.message, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(24.dp))
@@ -188,8 +190,8 @@ fun ReceiveScreen(
                             items(po.lines, key = { it.id }) { line ->
                                 PoLineRow(
                                     line = line,
-                                    receivedQty = state.receivedQtys[line.id] ?: 0.0,
-                                    onQtyChange = { qty -> vm.setLineQty(line.id, qty) }
+                                    countedUnits = state.countedUnits[line.id] ?: 0,
+                                    onEdit = { vm.editLine(line) }
                                 )
                                 HorizontalDivider()
                             }
@@ -199,106 +201,104 @@ fun ReceiveScreen(
                 }
             }
         }
+
+        (state.scan as? LineScan.Edit)?.let { edit ->
+            LineQtySheet(
+                line = edit.line,
+                currentUnits = state.countedUnits[edit.line.id] ?: 0,
+                onConfirm = { units -> vm.setLineUnits(edit.line.id, units) },
+                onCancel  = { vm.cancelEdit() }
+            )
+        }
     }
 }
 
+private fun cartonText(units: Int, packQty: Int): String =
+    if (packQty > 1) " (${"%.1f".format(units.toDouble() / packQty).removeSuffix(".0")} ctn)" else ""
+
 @Composable
-private fun PoLineRow(line: PoLine, receivedQty: Double, onQtyChange: (Double) -> Unit) {
-    var editing by remember(line.id) { mutableStateOf(false) }
-    val isFullyReceived = receivedQty >= line.orderedQty && line.orderedQty > 0
-    val hasAny = receivedQty > 0
+private fun PoLineRow(line: PoLine, countedUnits: Int, onEdit: () -> Unit) {
+    val previousUnits = (line.receivedQty * maxOf(1, line.packQty)).toInt()
+    val orderedUnits = line.orderedUnits
+    val remaining = orderedUnits - previousUnits
+    val hasAny = countedUnits > 0
+    val isComplete = hasAny && countedUnits >= remaining
+    val isOver = hasAny && countedUnits > remaining
+    val accent = when {
+        isOver     -> MaterialTheme.colorScheme.error
+        isComplete -> MaterialTheme.colorScheme.primary
+        hasAny     -> MaterialTheme.colorScheme.tertiary
+        else       -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     ListItem(
+        modifier = Modifier.clickable(onClick = onEdit),
         leadingContent = {
-            Icon(
-                if (isFullyReceived) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                null,
-                tint = when {
-                    isFullyReceived -> MaterialTheme.colorScheme.primary
-                    hasAny         -> MaterialTheme.colorScheme.tertiary
-                    else           -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
+            Icon(if (isComplete) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null, tint = accent)
         },
         headlineContent = {
             Text(line.description, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                fontWeight = if (isFullyReceived) FontWeight.Normal else FontWeight.Medium)
+                fontWeight = if (isComplete) FontWeight.Normal else FontWeight.Medium)
         },
         supportingContent = {
             Column {
                 Text(line.barcode, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     "Ordered: ${line.orderedQty.toInt()} carton${if (line.orderedQty != 1.0) "s" else ""}" +
-                    if (line.packQty > 1) " (${line.orderedUnits} units)" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    if (line.packQty > 1) " ($orderedUnits units)" else "",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (previousUnits > 0) {
+                    Text("Already received: $previousUnits units", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (isOver) {
+                    Text("Over by ${countedUnits - remaining}", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error)
+                }
             }
         },
         trailingContent = {
-            if (editing) {
-                var text by remember { mutableStateOf(if (receivedQty > 0) receivedQty.toInt().toString() else "") }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    OutlinedTextField(value = text, onValueChange = { text = it },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true, modifier = Modifier.width(72.dp), label = { Text("Qty") })
-                    TextButton(onClick = { onQtyChange(text.toDoubleOrNull() ?: 0.0); editing = false }) { Text("OK") }
-                }
-            } else {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        if (receivedQty > 0) "${receivedQty.toInt()} / ${line.orderedQty.toInt()}" else "—",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = when {
-                            isFullyReceived -> MaterialTheme.colorScheme.primary
-                            hasAny         -> MaterialTheme.colorScheme.tertiary
-                            else           -> MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
-                    TextButton(onClick = { editing = true }, contentPadding = PaddingValues(0.dp)) {
-                        Text("Edit", style = MaterialTheme.typography.labelSmall)
-                    }
-                }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(if (hasAny) "$countedUnits / $remaining" else "—",
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = accent)
+                if (hasAny) Text(cartonText(countedUnits, line.packQty).trim(), style = MaterialTheme.typography.labelSmall, color = accent)
             }
         }
     )
 }
 
 @Composable
-private fun LineQtySheet(line: PoLine, currentQty: Double, onConfirm: (Double) -> Unit, onCancel: () -> Unit) {
-    val defaultQty = if (currentQty > 0) currentQty else line.orderedQty
-    var text by remember { mutableStateOf(defaultQty.toInt().toString()) }
+private fun LineQtySheet(line: PoLine, currentUnits: Int, onConfirm: (Int) -> Unit, onCancel: () -> Unit) {
+    var text by remember { mutableStateOf(if (currentUnits > 0) currentUnits.toString() else "") }
+    val pack = maxOf(1, line.packQty)
+    val units = text.toIntOrNull() ?: 0
 
     BottomSheetContainer {
         Text(line.description, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
         Text("Barcode: ${line.barcode}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
-            "Ordered: ${line.orderedQty.toInt()} carton${if (line.orderedQty != 1.0) "s" else ""}" +
-            if (line.packQty > 1) " (${line.orderedUnits} units)" else "",
-            style = MaterialTheme.typography.bodySmall
-        )
-        if (currentQty > 0) {
-            Text("Previously received: ${currentQty.toInt()} carton${if (currentQty != 1.0) "s" else ""}",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+        if (line.cartonSku.isNotBlank()) {
+            Text("Carton SKU: ${line.cartonSku} ($pack units)", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(onClick = { text = ((text.toIntOrNull() ?: 1) - 1).coerceAtLeast(0).toString() }) {
-                Text("−", style = MaterialTheme.typography.headlineSmall)
-            }
-            OutlinedTextField(value = text, onValueChange = { text = it },
-                label = { Text("Cartons received") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true, modifier = Modifier.weight(1f))
-            IconButton(onClick = { text = ((text.toIntOrNull() ?: 0) + 1).toString() }) {
-                Text("+", style = MaterialTheme.typography.headlineSmall)
+        OutlinedTextField(value = text, onValueChange = { text = it.filter(Char::isDigit) },
+            label = { Text("Units received${cartonText(units, pack)}") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true, modifier = Modifier.fillMaxWidth())
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { text = (units - 1).coerceAtLeast(0).toString() }, modifier = Modifier.weight(1f)) { Text("−1") }
+            OutlinedButton(onClick = { text = (units + 1).toString() }, modifier = Modifier.weight(1f)) { Text("+1") }
+            if (pack > 1) {
+                OutlinedButton(onClick = { text = (units - pack).coerceAtLeast(0).toString() }, modifier = Modifier.weight(1f)) { Text("−$pack") }
+                OutlinedButton(onClick = { text = (units + pack).toString() }, modifier = Modifier.weight(1f)) { Text("+$pack") }
             }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-            Button(onClick = { onConfirm(text.toDoubleOrNull() ?: 0.0) }, modifier = Modifier.weight(1f)) { Text("Confirm") }
+            Button(onClick = { onConfirm(units) }, modifier = Modifier.weight(1f)) { Text("Confirm") }
         }
     }
 }

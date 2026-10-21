@@ -68,6 +68,8 @@ data class PurchaseOrder(
 data class PoLine(
     val id: Int,
     val barcode: String,
+    @SerializedName("carton_sku")    val cartonSku: String = "",
+    @SerializedName("counted_units") val countedUnits: Int? = null,
     val description: String,
     @SerializedName("ordered_qty")   val orderedQty: Double,
     @SerializedName("pack_qty")      val packQty: Int,
@@ -84,6 +86,22 @@ data class ReceiveLine(
 data class ReceiveRequest(
     @SerializedName("invoice_number") val invoiceNumber: String,
     val lines: List<ReceiveLine>
+)
+
+data class CountLine(
+    @SerializedName("line_id") val lineId: Int,
+    val units: Int
+)
+
+data class CountsRequest(
+    @SerializedName("invoice_number") val invoiceNumber: String,
+    val lines: List<CountLine>
+)
+
+data class CountsResponse(
+    @SerializedName("po_number")   val poNumber: String,
+    val status: String,
+    @SerializedName("lines_saved") val linesSaved: Int
 )
 
 data class ReceiveResponse(
