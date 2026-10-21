@@ -68,7 +68,9 @@ data class PurchaseOrder(
 data class PoLine(
     val id: Int,
     val barcode: String,
-    @SerializedName("carton_sku")    val cartonSku: String = "",
+    // Nullable on purpose: Gson skips Kotlin defaults, so a server that predates
+    // carton SKUs (field absent) would otherwise leave a null in a non-null String.
+    @SerializedName("carton_sku")    val cartonSku: String? = null,
     @SerializedName("counted_units") val countedUnits: Int? = null,
     val description: String,
     @SerializedName("ordered_qty")   val orderedQty: Double,

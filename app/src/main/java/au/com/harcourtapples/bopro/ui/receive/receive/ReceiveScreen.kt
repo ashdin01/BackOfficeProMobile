@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import au.com.harcourtapples.bopro.BoproApplication
 import au.com.harcourtapples.bopro.api.models.PoLine
+import au.com.harcourtapples.bopro.scanner.rememberScanFeedback
 import au.com.harcourtapples.bopro.ui.stocktake.scan.BottomSheetContainer
 import au.com.harcourtapples.bopro.ui.stocktake.scan.CameraPreview
 
@@ -43,6 +44,10 @@ fun ReceiveScreen(
     val state by vm.state.collectAsState()
 
     LaunchedEffect(poNumber, serverUrl, apiKey) { vm.loadPo(serverUrl, apiKey, poNumber) }
+
+    val feedback = rememberScanFeedback()
+    LaunchedEffect(state.lastScan) { if (state.lastScan != null) feedback.confirm() }
+    LaunchedEffect(state.scan) { if (state.scan is LineScan.NotOnOrder) feedback.reject() }
 
     val scanning = state.scan is LineScan.Active ||
                    state.scan is LineScan.NotOnOrder
@@ -277,7 +282,7 @@ private fun LineQtySheet(line: PoLine, currentUnits: Int, onConfirm: (Int) -> Un
     BottomSheetContainer {
         Text(line.description, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
         Text("Barcode: ${line.barcode}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (line.cartonSku.isNotBlank()) {
+        if (!line.cartonSku.isNullOrBlank()) {
             Text("Carton SKU: ${line.cartonSku} ($pack units)", style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

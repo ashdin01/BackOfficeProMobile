@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import au.com.harcourtapples.bopro.BuildConfig
 import au.com.harcourtapples.bopro.SettingsStore
 import au.com.harcourtapples.bopro.api.ApiClient
 import kotlinx.coroutines.launch
@@ -138,7 +139,7 @@ fun SettingsScreen(store: SettingsStore, onBack: () -> Unit) {
 
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
             Text("About", style = MaterialTheme.typography.titleMedium)
-            Text("BackOfficePro Mobile  v1.0.0\n\nStocktake and Receive Stock in one app.",
+            Text("BackOfficePro Mobile  v${BuildConfig.VERSION_NAME}\n\nStocktake and Receive Stock in one app.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

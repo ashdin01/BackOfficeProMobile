@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import au.com.harcourtapples.bopro.BoproApplication
 import au.com.harcourtapples.bopro.scanner.BarcodeAnalyzer
+import au.com.harcourtapples.bopro.scanner.rememberScanFeedback
 import java.util.concurrent.Executors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +47,14 @@ fun ScanScreen(
     val app = context.applicationContext as BoproApplication
     val vm: ScanViewModel = viewModel(factory = ScanViewModel.factory(app.stocktakeRepo))
     val state by vm.state.collectAsState()
+    val feedback = rememberScanFeedback()
+    LaunchedEffect(state) {
+        when (state) {
+            is ScanState.ProductFound, is ScanState.OfflineReady -> feedback.confirm()
+            is ScanState.NotFound, is ScanState.Error -> feedback.reject()
+            else -> {}
+        }
+    }
 
     var hasCameraPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)

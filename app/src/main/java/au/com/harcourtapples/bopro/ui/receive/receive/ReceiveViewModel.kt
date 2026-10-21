@@ -66,11 +66,11 @@ fun extractGtin(raw: String): String {
  */
 fun findLineForScan(lines: List<PoLine>, rawCode: String): Pair<PoLine, ScanKind>? {
     val code = extractGtin(rawCode)
-    lines.firstOrNull { it.cartonSku.isNotBlank() && it.cartonSku == code }?.let { return it to ScanKind.CARTON }
+    lines.firstOrNull { !it.cartonSku.isNullOrBlank() && it.cartonSku == code }?.let { return it to ScanKind.CARTON }
     lines.firstOrNull { it.barcode == code }?.let { return it to ScanKind.UNIT }
     val key = digitsKey(code)
     if (key.isEmpty()) return null
-    lines.firstOrNull { it.cartonSku.isNotBlank() && digitsKey(it.cartonSku) == key }?.let { return it to ScanKind.CARTON }
+    lines.firstOrNull { !it.cartonSku.isNullOrBlank() && digitsKey(it.cartonSku) == key }?.let { return it to ScanKind.CARTON }
     lines.firstOrNull { digitsKey(it.barcode) == key }?.let { return it to ScanKind.UNIT }
     return null
 }
