@@ -73,4 +73,12 @@ interface ApiService {
 
     @POST("api/v1/order-prep/draft")
     suspend fun createOrderPrepDraft(@Body request: CreateOrderPrepDraftRequest): Response<CreateOrderPrepDraftResponse>
+
+    // ── Stock check / adjust ───────────────────────────────────────────────────
+
+    @GET("api/v1/stock/{barcode}")
+    suspend fun getStockInfo(@Path("barcode") barcode: String): Response<StockInfo>
+
+    @POST("api/v1/stock/{barcode}/set")
+    suspend fun setStock(@Path("barcode") barcode: String, @Body request: SetStockRequest): Response<SetStockResponse>
 }

@@ -33,6 +33,12 @@ class ScanFeedback(context: Context) {
         vibrate(longArrayOf(0, REJECT_PULSE_MS, REJECT_GAP_MS, REJECT_PULSE_MS))
     }
 
+    /** Distinct triple beep + triple buzz: "this item needs a use-by date". */
+    fun attention() {
+        tone?.startTone(ToneGenerator.TONE_PROP_PROMPT, ATTENTION_BEEP_MS)
+        vibrate(longArrayOf(0, ATTENTION_PULSE_MS, ATTENTION_GAP_MS, ATTENTION_PULSE_MS, ATTENTION_GAP_MS, ATTENTION_PULSE_MS))
+    }
+
     private fun vibrate(pattern: LongArray) {
         val v = vibrator ?: return
         if (!v.hasVibrator()) return
@@ -52,6 +58,9 @@ class ScanFeedback(context: Context) {
         const val REJECT_BEEP_MS   = 400
         const val REJECT_PULSE_MS  = 150L
         const val REJECT_GAP_MS    = 100L
+        const val ATTENTION_BEEP_MS  = 500
+        const val ATTENTION_PULSE_MS = 120L
+        const val ATTENTION_GAP_MS   = 90L
     }
 }
 

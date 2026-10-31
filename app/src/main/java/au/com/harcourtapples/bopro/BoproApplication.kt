@@ -4,6 +4,7 @@ import android.app.Application
 import au.com.harcourtapples.bopro.db.AppDatabase
 import au.com.harcourtapples.bopro.repository.OrderPrepRepository
 import au.com.harcourtapples.bopro.repository.ReceiveRepository
+import au.com.harcourtapples.bopro.repository.StockRepository
 import au.com.harcourtapples.bopro.repository.StocktakeRepository
 
 class BoproApplication : Application() {
@@ -12,4 +13,5 @@ class BoproApplication : Application() {
     val stocktakeRepo  by lazy { StocktakeRepository(database.sessionDao(), database.countDao()) }
     val receiveRepo    by lazy { ReceiveRepository() }
     val orderPrepRepo  by lazy { OrderPrepRepository() }
+    val stockRepo      by lazy { StockRepository() }
 }

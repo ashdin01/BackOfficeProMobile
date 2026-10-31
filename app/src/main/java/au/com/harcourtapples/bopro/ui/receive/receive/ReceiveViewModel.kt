@@ -19,6 +19,8 @@ sealed class LineScan {
     object Active : LineScan()
     data class Edit(val line: PoLine) : LineScan()          // manual correction sheet
     data class NotOnOrder(val barcode: String) : LineScan()
+    /** Just-scanned line whose product group needs a use-by date and has none yet. */
+    data class UseBy(val line: PoLine) : LineScan()
 }
 
 /** Last auto-added scan, shown as a banner while the camera keeps running. */
@@ -33,6 +35,10 @@ data class ReceiveUiState(
     val po: PurchaseOrder? = null,
     // units counted in this delivery (not yet received on the desktop), keyed by line_id
     val countedUnits: Map<Int, Int> = emptyMap(),
+    // use-by/best-before dates (ISO yyyy-MM-dd) keyed by line_id
+    val useByDates: Map<Int, String> = emptyMap(),
+    // flagged lines the user chose to leave without a date, so scans don't re-prompt
+    val useBySkipped: Set<Int> = emptySet(),
     val invoiceNumber: String = "",
     val scan: LineScan = LineScan.Idle,
     val lastScan: ScanFlash? = null,
@@ -87,7 +93,8 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
                 val po = repo.getPurchaseOrder(serverUrl, apiKey, poNumber)
                 // Resume any counts already staged for this PO
                 val staged = po.lines.mapNotNull { l -> l.countedUnits?.takeIf { it > 0 }?.let { l.id to it } }.toMap()
-                _state.value = _state.value.copy(po = po, countedUnits = staged,
+                val dates = po.lines.mapNotNull { l -> l.countedUseBy?.takeIf { it.isNotBlank() }?.let { l.id to it } }.toMap()
+                _state.value = _state.value.copy(po = po, countedUnits = staged, useByDates = dates,
                     invoiceNumber = po.invoiceNumber, isLoading = false)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message ?: "Failed to load PO")
@@ -112,16 +119,35 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
         val (line, kind) = match
         val add = if (kind == ScanKind.CARTON) maxOf(1, line.packQty) else 1
         val total = (_state.value.countedUnits[line.id] ?: 0) + add
-        _state.value = _state.value.copy(
-            countedUnits = _state.value.countedUnits + (line.id to total),
-            lastScan = ScanFlash(line.description, add, total, kind == ScanKind.CARTON)
+        val st = _state.value
+        val needsDate = line.trackUseBy == true && line.id !in st.useByDates && line.id !in st.useBySkipped
+        _state.value = st.copy(
+            countedUnits = st.countedUnits + (line.id to total),
+            lastScan = ScanFlash(line.description, add, total, kind == ScanKind.CARTON),
+            scan = if (needsDate) LineScan.UseBy(line) else st.scan
         )
     }
 
-    fun setLineUnits(lineId: Int, units: Int) {
-        val updated = _state.value.countedUnits.toMutableMap()
+    /** null = no date: remembered so the same line isn't prompted again this session. */
+    fun setUseBy(lineId: Int, iso: String?) {
+        val st = _state.value
+        _state.value = if (iso != null)
+            st.copy(useByDates = st.useByDates + (lineId to iso), useBySkipped = st.useBySkipped - lineId, scan = LineScan.Active)
+        else
+            st.copy(useByDates = st.useByDates - lineId, useBySkipped = st.useBySkipped + lineId, scan = LineScan.Active)
+    }
+
+    fun setLineUnits(lineId: Int, units: Int, useBy: String? = null) {
+        val st = _state.value
+        val updated = st.countedUnits.toMutableMap()
         if (units > 0) updated[lineId] = units else updated.remove(lineId)
-        _state.value = _state.value.copy(countedUnits = updated, scan = LineScan.Idle)
+        val line = st.po?.lines?.firstOrNull { it.id == lineId }
+        _state.value = st.copy(
+            countedUnits = updated,
+            useByDates = if (useBy != null) st.useByDates + (lineId to useBy) else st.useByDates - lineId,
+            useBySkipped = if (useBy == null && line?.trackUseBy == true) st.useBySkipped + lineId else st.useBySkipped - lineId,
+            scan = LineScan.Idle
+        )
     }
 
     fun setInvoiceNumber(n: String) { _state.value = _state.value.copy(invoiceNumber = n) }
@@ -131,7 +157,7 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
         val po = _state.value.po ?: return
         val lines = _state.value.countedUnits
             .filter { (_, units) -> units > 0 }
-            .map { (lineId, units) -> CountLine(lineId, units) }
+            .map { (lineId, units) -> CountLine(lineId, units, _state.value.useByDates[lineId]) }
 
         viewModelScope.launch {
             _state.value = _state.value.copy(isSubmitting = true, submitResult = null)

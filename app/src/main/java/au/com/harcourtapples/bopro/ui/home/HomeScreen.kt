@@ -3,6 +3,7 @@ package au.com.harcourtapples.bopro.ui.home
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -20,6 +21,7 @@ fun HomeScreen(
     onStocktake: () -> Unit,
     onReceive: () -> Unit,
     onOrderPrep: () -> Unit,
+    onStockCheck: () -> Unit,
     onSettings: () -> Unit
 ) {
     Scaffold(
@@ -61,6 +63,14 @@ fun HomeScreen(
                 title = "Receive Stock",
                 description = "Scan incoming deliveries against\na purchase order.",
                 onClick = onReceive,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            FeatureCard(
+                icon = { Icon(Icons.Default.Inventory2, null, modifier = Modifier.size(40.dp)) },
+                title = "Stock Check",
+                description = "Scan an item to see stock, price and supplier,\nand set the stock on hand.",
+                onClick = onStockCheck,
                 modifier = Modifier.fillMaxWidth()
             )
 

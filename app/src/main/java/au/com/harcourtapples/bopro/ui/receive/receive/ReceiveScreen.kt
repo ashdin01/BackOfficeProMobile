@@ -46,11 +46,14 @@ fun ReceiveScreen(
     LaunchedEffect(poNumber, serverUrl, apiKey) { vm.loadPo(serverUrl, apiKey, poNumber) }
 
     val feedback = rememberScanFeedback()
-    LaunchedEffect(state.lastScan) { if (state.lastScan != null) feedback.confirm() }
+    // A scan that needs a use-by date gets the distinct attention alert instead of the normal beep.
+    LaunchedEffect(state.lastScan) { if (state.lastScan != null && state.scan !is LineScan.UseBy) feedback.confirm() }
+    LaunchedEffect(state.scan) { if (state.scan is LineScan.UseBy) feedback.attention() }
     LaunchedEffect(state.scan) { if (state.scan is LineScan.NotOnOrder) feedback.reject() }
 
     val scanning = state.scan is LineScan.Active ||
-                   state.scan is LineScan.NotOnOrder
+                   state.scan is LineScan.NotOnOrder ||
+                   state.scan is LineScan.UseBy
 
     Box(Modifier.fillMaxSize()) {
         if (scanning) {
@@ -79,6 +82,10 @@ fun ReceiveScreen(
                         Text("Counted so far: ${flash.total} units", color = Color.White)
                     }
                 }
+            }
+
+            (state.scan as? LineScan.UseBy)?.let { scan ->
+                UseBySheet(line = scan.line, onDone = { iso -> vm.setUseBy(scan.line.id, iso) })
             }
 
             (state.scan as? LineScan.NotOnOrder)?.let { scan ->
@@ -196,6 +203,7 @@ fun ReceiveScreen(
                                 PoLineRow(
                                     line = line,
                                     countedUnits = state.countedUnits[line.id] ?: 0,
+                                    useBy = state.useByDates[line.id],
                                     onEdit = { vm.editLine(line) }
                                 )
                                 HorizontalDivider()
@@ -211,7 +219,8 @@ fun ReceiveScreen(
             LineQtySheet(
                 line = edit.line,
                 currentUnits = state.countedUnits[edit.line.id] ?: 0,
-                onConfirm = { units -> vm.setLineUnits(edit.line.id, units) },
+                currentUseBy = state.useByDates[edit.line.id],
+                onConfirm = { units, useBy -> vm.setLineUnits(edit.line.id, units, useBy) },
                 onCancel  = { vm.cancelEdit() }
             )
         }
@@ -222,7 +231,7 @@ private fun cartonText(units: Int, packQty: Int): String =
     if (packQty > 1) " (${"%.1f".format(units.toDouble() / packQty).removeSuffix(".0")} ctn)" else ""
 
 @Composable
-private fun PoLineRow(line: PoLine, countedUnits: Int, onEdit: () -> Unit) {
+private fun PoLineRow(line: PoLine, countedUnits: Int, useBy: String?, onEdit: () -> Unit) {
     val previousUnits = (line.receivedQty * maxOf(1, line.packQty)).toInt()
     val orderedUnits = line.orderedUnits
     val remaining = orderedUnits - previousUnits
@@ -257,6 +266,11 @@ private fun PoLineRow(line: PoLine, countedUnits: Int, onEdit: () -> Unit) {
                     Text("Already received: $previousUnits units", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                if (line.trackUseBy == true && hasAny) {
+                    Text(if (useBy != null) "Use-by: ${prettyDate(useBy)}" else "⚠ Use-by date needed",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (useBy != null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
+                }
                 if (isOver) {
                     Text("Over by ${countedUnits - remaining}", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error)
@@ -274,8 +288,9 @@ private fun PoLineRow(line: PoLine, countedUnits: Int, onEdit: () -> Unit) {
 }
 
 @Composable
-private fun LineQtySheet(line: PoLine, currentUnits: Int, onConfirm: (Int) -> Unit, onCancel: () -> Unit) {
+private fun LineQtySheet(line: PoLine, currentUnits: Int, currentUseBy: String?, onConfirm: (Int, String?) -> Unit, onCancel: () -> Unit) {
     var text by remember { mutableStateOf(if (currentUnits > 0) currentUnits.toString() else "") }
+    var useBy by remember { mutableStateOf(currentUseBy) }
     val pack = maxOf(1, line.packQty)
     val units = text.toIntOrNull() ?: 0
 
@@ -301,9 +316,26 @@ private fun LineQtySheet(line: PoLine, currentUnits: Int, onConfirm: (Int) -> Un
             }
         }
 
+        if (line.trackUseBy == true) UseByPicker(value = useBy, onChange = { useBy = it })
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-            Button(onClick = { onConfirm(units) }, modifier = Modifier.weight(1f)) { Text("Confirm") }
+            Button(onClick = { onConfirm(units, useBy) }, modifier = Modifier.weight(1f)) { Text("Confirm") }
+        }
+    }
+}
+
+/** Shown right after a scan of a use-by-tracked item that has no date yet. */
+@Composable
+private fun UseBySheet(line: PoLine, onDone: (String?) -> Unit) {
+    var useBy by remember(line.id) { mutableStateOf<String?>(null) }
+    BottomSheetContainer {
+        Text("Use-by date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(line.description, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+        UseByPicker(value = useBy, onChange = { useBy = it })
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { onDone(null) }, modifier = Modifier.weight(1f)) { Text("No date") }
+            Button(onClick = { onDone(useBy) }, enabled = useBy != null, modifier = Modifier.weight(1f)) { Text("Save date") }
         }
     }
 }

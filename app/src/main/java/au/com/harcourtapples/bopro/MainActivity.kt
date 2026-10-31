@@ -17,6 +17,7 @@ import au.com.harcourtapples.bopro.ui.receive.list.PoListScreen
 import au.com.harcourtapples.bopro.ui.receive.receive.ReceiveScreen
 import au.com.harcourtapples.bopro.ui.settings.SettingsScreen
 import au.com.harcourtapples.bopro.ui.stocktake.detail.SessionDetailScreen
+import au.com.harcourtapples.bopro.ui.stock.StockCheckScreen
 import au.com.harcourtapples.bopro.ui.stocktake.scan.ScanScreen
 import au.com.harcourtapples.bopro.ui.stocktake.sessions.SessionsScreen
 import au.com.harcourtapples.bopro.ui.stocktake.sync.SyncScreen
@@ -48,12 +49,17 @@ class MainActivity : ComponentActivity() {
                             onStocktake  = { nav.navigate("stocktake/sessions") },
                             onReceive    = { nav.navigate("receive/list") },
                             onOrderPrep  = { nav.navigate("orderprep/suppliers") },
+                            onStockCheck = { nav.navigate("stock/check") },
                             onSettings   = { nav.navigate("settings") }
                         )
                     }
 
                     composable("settings") {
                         SettingsScreen(store = store, onBack = { nav.popBackStack() })
+                    }
+
+                    composable("stock/check") {
+                        StockCheckScreen(serverUrl = serverUrl, apiKey = apiKey, onBack = { nav.popBackStack() })
                     }
 
                     // ── Stocktake ──────────────────────────────────────────────

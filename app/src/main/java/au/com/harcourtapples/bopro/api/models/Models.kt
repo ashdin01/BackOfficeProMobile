@@ -72,6 +72,9 @@ data class PoLine(
     // carton SKUs (field absent) would otherwise leave a null in a non-null String.
     @SerializedName("carton_sku")    val cartonSku: String? = null,
     @SerializedName("counted_units") val countedUnits: Int? = null,
+    // Both nullable/defaulted for the same reason as cartonSku: older servers omit them.
+    @SerializedName("counted_use_by") val countedUseBy: String? = null,
+    @SerializedName("track_use_by")   val trackUseBy: Boolean? = null,
     val description: String,
     @SerializedName("ordered_qty")   val orderedQty: Double,
     @SerializedName("pack_qty")      val packQty: Int,
@@ -92,7 +95,8 @@ data class ReceiveRequest(
 
 data class CountLine(
     @SerializedName("line_id") val lineId: Int,
-    val units: Int
+    val units: Int,
+    @SerializedName("use_by_date") val useByDate: String? = null
 )
 
 data class CountsRequest(
@@ -143,3 +147,30 @@ data class CreateOrderPrepDraftResponse(
     @SerializedName("po_number")  val poNumber: String,
     @SerializedName("line_count") val lineCount: Int
 )
+
+// ── Stock check / adjust ───────────────────────────────────────────────────────
+
+data class StockInfo(
+    val barcode: String,
+    val description: String,
+    val unit: String?,
+    @SerializedName("soh_qty")          val sohQty: Double,
+    @SerializedName("on_order_qty")     val onOrderQty: Double,
+    @SerializedName("default_supplier") val defaultSupplier: String?,
+    @SerializedName("cost_inc_gst")     val costIncGst: Double,
+    @SerializedName("sell_price")       val sellPrice: Double
+)
+
+data class SetStockRequest(
+    @SerializedName("new_qty")      val newQty: Double,
+    @SerializedName("expected_qty") val expectedQty: Double
+)
+
+data class SetStockResponse(
+    @SerializedName("old_qty") val oldQty: Double,
+    @SerializedName("new_qty") val newQty: Double,
+    val delta: Double
+)
+
+/** 409 body: stock moved between scan and save. */
+data class StockChangedBody(@SerializedName("current_qty") val currentQty: Double)
