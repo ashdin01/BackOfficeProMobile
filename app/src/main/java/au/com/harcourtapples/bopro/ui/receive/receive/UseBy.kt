@@ -98,7 +98,7 @@ fun UseByPicker(value: String?, onChange: (String?) -> Unit) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Wheel("Day", day, 1, daysInMonth(year, month), textColor, modifier = Modifier.weight(1f)) { emit(year, month, it) }
-            Wheel("Month", month, 1, 12, textColor, formatter = { MONTHS[it - 1] }, modifier = Modifier.weight(1f)) { emit(year, it, day) }
+            Wheel("Month", month, 1, 12, textColor, formatter = { MONTHS.getOrElse(it - 1) { _ -> it.toString() } }, modifier = Modifier.weight(1f)) { emit(year, it, day) }
             Wheel("Year", year, thisYear, thisYear + 5, textColor, modifier = Modifier.weight(1f)) { emit(it, month, day) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
