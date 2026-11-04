@@ -158,8 +158,23 @@ data class StockInfo(
     @SerializedName("on_order_qty")     val onOrderQty: Double,
     @SerializedName("default_supplier") val defaultSupplier: String?,
     @SerializedName("cost_inc_gst")     val costIncGst: Double,
-    @SerializedName("sell_price")       val sellPrice: Double
+    @SerializedName("sell_price")       val sellPrice: Double,
+    @SerializedName("track_use_by")     val trackUseBy: Boolean? = null,
+    @SerializedName("use_by_batches")   val useByBatches: List<UseByBatch>? = null
 )
+
+data class UseByBatch(
+    val id: Int,
+    @SerializedName("use_by_date") val useByDate: String,
+    val qty: Double
+)
+
+data class AddBatchRequest(
+    @SerializedName("use_by_date") val useByDate: String,
+    val qty: Double
+)
+
+data class PrintLabelRequest(val copies: Int, val large: Boolean = false)
 
 data class SetStockRequest(
     @SerializedName("new_qty")      val newQty: Double,

@@ -16,7 +16,9 @@ import kotlinx.coroutines.launch
 sealed class StockState {
     object Scanning  : StockState()
     object LookingUp : StockState()
-    data class Found(val info: StockInfo) : StockState()
+    data class Found(val info: StockInfo, val message: String? = null) : StockState()
+    data class AddingUseBy(val info: StockInfo) : StockState()
+    data class PrintingLabel(val info: StockInfo) : StockState()
     data class Adjusting(val info: StockInfo) : StockState()
     object Saving : StockState()
     data class Saved(val description: String, val result: SetStockResponse) : StockState()
@@ -42,6 +44,31 @@ class StockCheckViewModel(private val repo: StockRepository) : ViewModel() {
                 val info = repo.getStockInfo(serverUrl, apiKey, barcode)
                 _state.value = if (info != null) StockState.Found(info) else StockState.NotFound(barcode)
             } catch (e: Exception) { _state.value = StockState.Error(e.message ?: "Network error") }
+        }
+    }
+
+    fun startUseBy(info: StockInfo) { _state.value = StockState.AddingUseBy(info) }
+    fun startLabel(info: StockInfo) { _state.value = StockState.PrintingLabel(info) }
+    fun backToInfo(info: StockInfo) { _state.value = StockState.Found(info) }
+
+    fun saveUseBy(info: StockInfo, useBy: String, qty: Double, serverUrl: String, apiKey: String) {
+        _state.value = StockState.Saving
+        viewModelScope.launch {
+            try {
+                repo.addUseBy(serverUrl, apiKey, info.barcode, useBy, qty)
+                val fresh = repo.getStockInfo(serverUrl, apiKey, info.barcode) ?: info
+                _state.value = StockState.Found(fresh, "Use-by added")
+            } catch (e: Exception) { _state.value = StockState.Error(e.message ?: "Failed to save use-by") }
+        }
+    }
+
+    fun printLabel(info: StockInfo, copies: Int, serverUrl: String, apiKey: String) {
+        _state.value = StockState.Saving
+        viewModelScope.launch {
+            try {
+                repo.printLabel(serverUrl, apiKey, info.barcode, copies)
+                _state.value = StockState.Found(info, "Sent $copies label${if (copies == 1) "" else "s"} to the printer")
+            } catch (e: Exception) { _state.value = StockState.Error(e.message ?: "Print failed") }
         }
     }
 

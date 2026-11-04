@@ -68,8 +68,8 @@ fun HomeScreen(
 
             FeatureCard(
                 icon = { Icon(Icons.Default.Inventory2, null, modifier = Modifier.size(40.dp)) },
-                title = "Stock Check",
-                description = "Scan an item to see stock, price and supplier,\nand set the stock on hand.",
+                title = "Stock Management",
+                description = "Scan an item to see stock, price and supplier,\nset stock, add use-by dates, print shelf labels.",
                 onClick = onStockCheck,
                 modifier = Modifier.fillMaxWidth()
             )

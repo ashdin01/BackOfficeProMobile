@@ -81,4 +81,10 @@ interface ApiService {
 
     @POST("api/v1/stock/{barcode}/set")
     suspend fun setStock(@Path("barcode") barcode: String, @Body request: SetStockRequest): Response<SetStockResponse>
+
+    @POST("api/v1/stock/{barcode}/batches")
+    suspend fun addUseByBatch(@Path("barcode") barcode: String, @Body request: AddBatchRequest): Response<Unit>
+
+    @POST("api/v1/stock/{barcode}/label")
+    suspend fun printLabel(@Path("barcode") barcode: String, @Body request: PrintLabelRequest): Response<Unit>
 }

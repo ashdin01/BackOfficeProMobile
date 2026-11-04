@@ -25,6 +25,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import au.com.harcourtapples.bopro.BoproApplication
 import au.com.harcourtapples.bopro.api.models.StockInfo
 import au.com.harcourtapples.bopro.scanner.rememberScanFeedback
+import au.com.harcourtapples.bopro.ui.receive.receive.UseByPicker
+import au.com.harcourtapples.bopro.ui.receive.receive.prettyDate
 import au.com.harcourtapples.bopro.ui.stocktake.scan.BottomSheetContainer
 import au.com.harcourtapples.bopro.ui.stocktake.scan.CameraPreview
 import java.util.Locale
@@ -56,7 +58,7 @@ fun StockCheckScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Stock Check") },
+            TopAppBar(title = { Text("Stock Management") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black.copy(alpha = 0.6f),
                     titleContentColor = Color.White, navigationIconContentColor = Color.White))
@@ -79,12 +81,17 @@ fun StockCheckScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) {
             }
 
             when (val s = state) {
-                is StockState.Scanning -> Text("Scan a product to check stock", color = Color.White,
+                is StockState.Scanning -> Text("Scan a product to manage its stock", color = Color.White,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp)
                         .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp)).padding(horizontal = 16.dp, vertical = 8.dp))
                 is StockState.LookingUp, is StockState.Saving ->
                     CircularProgressIndicator(Modifier.align(Alignment.Center), color = Color.White)
-                is StockState.Found -> InfoSheet(s.info, onAdjust = { vm.startAdjust(s.info) }, onDone = { vm.reset() })
+                is StockState.Found -> InfoSheet(s.info, s.message, onAdjust = { vm.startAdjust(s.info) },
+                    onUseBy = { vm.startUseBy(s.info) }, onLabel = { vm.startLabel(s.info) }, onDone = { vm.reset() })
+                is StockState.AddingUseBy -> UseBySheet(s.info,
+                    onSave = { d, q -> vm.saveUseBy(s.info, d, q, serverUrl, apiKey) }, onCancel = { vm.backToInfo(s.info) })
+                is StockState.PrintingLabel -> LabelSheet(s.info,
+                    onPrint = { vm.printLabel(s.info, it, serverUrl, apiKey) }, onCancel = { vm.backToInfo(s.info) })
                 is StockState.Adjusting -> AdjustSheet(s.info, notice = null,
                     onSave = { vm.save(s.info, it, serverUrl, apiKey) }, onCancel = { vm.reset() })
                 is StockState.Changed -> AdjustSheet(s.info,
@@ -99,7 +106,8 @@ fun StockCheckScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun InfoSheet(info: StockInfo, onAdjust: () -> Unit, onDone: () -> Unit) {
+private fun InfoSheet(info: StockInfo, message: String?, onAdjust: () -> Unit, onUseBy: () -> Unit,
+                      onLabel: () -> Unit, onDone: () -> Unit) {
     BottomSheetContainer {
         Text(info.description, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(info.barcode, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -109,6 +117,16 @@ private fun InfoSheet(info: StockInfo, onAdjust: () -> Unit, onDone: () -> Unit)
         InfoRow("Default Supplier", info.defaultSupplier ?: "—")
         InfoRow("Cost (inc GST)", money(info.costIncGst))
         InfoRow("Sell Price", money(info.sellPrice))
+        if (!info.useByBatches.isNullOrEmpty()) {
+            HorizontalDivider()
+            Text("Use-by dates", style = MaterialTheme.typography.labelLarge)
+            info.useByBatches.forEach { InfoRow(prettyDate(it.useByDate), "× ${qty(it.qty)}") }
+        }
+        if (message != null) Text(message, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onUseBy, modifier = Modifier.weight(1f)) { Text("Add Use-by") }
+            OutlinedButton(onClick = onLabel, modifier = Modifier.weight(1f)) { Text("Print Label") }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = onDone, modifier = Modifier.weight(1f)) { Text("Scan Next") }
             Button(onClick = onAdjust, modifier = Modifier.weight(1f)) { Text("Adjust Stock On Hand") }
@@ -167,5 +185,46 @@ private fun MessageSheet(title: String, message: String, onDismiss: () -> Unit) 
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(message)
         Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("OK") }
+    }
+}
+
+@Composable
+private fun UseBySheet(info: StockInfo, onSave: (String, Double) -> Unit, onCancel: () -> Unit) {
+    var useBy by remember { mutableStateOf<String?>(null) }
+    var text by remember { mutableStateOf("") }
+    val n = text.toIntOrNull()?.takeIf { it > 0 }
+    BottomSheetContainer {
+        Text("Add Use-by", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(info.description)
+        UseByPicker(value = useBy, onChange = { useBy = it })
+        OutlinedTextField(value = text, onValueChange = { text = it.filter(Char::isDigit) },
+            label = { Text("Number of items with this use-by") },
+            supportingText = { Text("Doesn't change stock on hand — it's for expiry alerts") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true, modifier = Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
+            Button(onClick = { onSave(useBy!!, n!!.toDouble()) }, enabled = useBy != null && n != null,
+                modifier = Modifier.weight(1f)) { Text("Save") }
+        }
+    }
+}
+
+@Composable
+private fun LabelSheet(info: StockInfo, onPrint: (Int) -> Unit, onCancel: () -> Unit) {
+    var text by remember { mutableStateOf("1") }
+    val copies = text.toIntOrNull()?.takeIf { it in 1..50 }
+    BottomSheetContainer {
+        Text("Print Shelf Label", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(info.description)
+        Text("${money(info.sellPrice)}  ·  ${info.barcode}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedTextField(value = text, onValueChange = { text = it.filter(Char::isDigit) },
+            label = { Text("Copies (1–50)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true, modifier = Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
+            Button(onClick = { copies?.let(onPrint) }, enabled = copies != null, modifier = Modifier.weight(1f)) { Text("Print") }
+        }
     }
 }
