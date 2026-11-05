@@ -82,7 +82,7 @@ class StocktakeRepository(
 
     suspend fun syncSession(serverUrl: String, apiKey: String = "", session: LocalSession): Int {
         val api = ApiClient.service(serverUrl, apiKey)
-        val resp = api.createSession(CreateSessionRequest(session.label, null, session.notes))
+        val resp = api.createSession(CreateSessionRequest(session.label, null, notes = session.notes))
         if (!resp.isSuccessful) throw Exception("Failed to create session on server: ${resp.code()}")
         val serverId = resp.body()?.get("id") ?: throw Exception("No server ID returned")
         for (count in countDao.getUnsyncedForSession(session.id)) {

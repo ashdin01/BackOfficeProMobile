@@ -19,7 +19,6 @@ data class Product(
     val unit: String,
     val brand: String?,
     @SerializedName("dept_name")   val deptName: String?,
-    @SerializedName("group_name")  val groupName: String? = null,
     @SerializedName("soh_qty")     val sohQty: Double,
     // Raw so "server didn't send group_id" (older BackOfficePro; null) differs from "product has
     // no group" (JSON null). Stocktake group blocking only applies when the server sent it.
@@ -38,7 +37,8 @@ data class Session(
     @SerializedName("closed_at")   val closedAt: String?,
     @SerializedName("line_count")  val lineCount: Int,
     val notes: String?,
-    @SerializedName("group_id")    val groupId: Int? = null
+    @SerializedName("group_id")    val groupId: Int? = null,
+    @SerializedName("group_name")  val groupName: String? = null
 )
 
 data class CreateSessionRequest(
