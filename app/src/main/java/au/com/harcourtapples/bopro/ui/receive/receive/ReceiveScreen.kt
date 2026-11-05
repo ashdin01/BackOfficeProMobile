@@ -3,6 +3,7 @@ package au.com.harcourtapples.bopro.ui.receive.receive
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -51,9 +52,32 @@ fun ReceiveScreen(
     LaunchedEffect(state.scan) { if (state.scan is LineScan.UseBy) feedback.attention() }
     LaunchedEffect(state.scan) { if (state.scan is LineScan.NotOnOrder) feedback.reject() }
 
+    // Counts/dates scanned but not yet sent with Save Count (differs from what the server has staged).
+    val dirty = state.submitResult == null && state.po?.let { po ->
+        val savedUnits = po.lines.mapNotNull { l -> l.countedUnits?.takeIf { it > 0 }?.let { l.id to it } }.toMap()
+        val savedDates = po.lines.mapNotNull { l -> l.countedUseBy?.takeIf { it.isNotBlank() }?.let { l.id to it } }.toMap()
+        state.countedUnits.filterValues { it > 0 } != savedUnits || state.useByDates != savedDates
+    } == true
+    var confirmLeave by remember { mutableStateOf(false) }
+    val requestBack: () -> Unit = { if (dirty) { confirmLeave = true } else { onBack() } }
+
     val scanning = state.scan is LineScan.Active ||
                    state.scan is LineScan.NotOnOrder ||
                    state.scan is LineScan.UseBy
+
+    // System back (gesture / Samsung nav bar) behaves like the on-screen arrow: out of the camera
+    // first, then a discard warning if there are unsaved counts.
+    BackHandler(enabled = scanning || dirty) { if (scanning) { vm.stopScanning() } else { confirmLeave = true } }
+
+    if (confirmLeave) {
+        AlertDialog(
+            onDismissRequest = { confirmLeave = false },
+            title = { Text("Discard unsaved counts?") },
+            text = { Text("These counts haven't been saved to BackOfficePro. Tap Save Count to keep them.") },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; onBack() }) { Text("Discard") } },
+            dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Keep scanning") } }
+        )
+    }
 
     Box(Modifier.fillMaxSize()) {
         if (scanning) {
@@ -111,7 +135,7 @@ fun ReceiveScreen(
                                 state.po?.let { Text(it.supplierName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                             }
                         },
-                        navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+                        navigationIcon = { IconButton(onClick = requestBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
                     )
                 },
                 floatingActionButton = {
