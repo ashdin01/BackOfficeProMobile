@@ -1,3 +1,4 @@
 -keep class au.com.harcourtapples.bopro.api.models.** { *; }
 -keepattributes Signature
 -keepattributes *Annotation*
+-keep class au.com.harcourtapples.bopro.repository.ReceiveDraft { *; }

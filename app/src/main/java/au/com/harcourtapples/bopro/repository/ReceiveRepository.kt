@@ -9,7 +9,7 @@ import au.com.harcourtapples.bopro.api.models.CountLine
 import au.com.harcourtapples.bopro.api.models.CountsRequest
 import au.com.harcourtapples.bopro.api.models.CountsResponse
 
-class ReceiveRepository {
+class ReceiveRepository(val drafts: ReceiveDraftStore) {
 
     suspend fun getPurchaseOrders(serverUrl: String, apiKey: String): List<PurchaseOrder> {
         val resp = ApiClient.service(serverUrl, apiKey).getPurchaseOrders()

@@ -53,11 +53,7 @@ fun ReceiveScreen(
     LaunchedEffect(state.scan) { if (state.scan is LineScan.NotOnOrder) feedback.reject() }
 
     // Counts/dates scanned but not yet sent with Save Count (differs from what the server has staged).
-    val dirty = state.submitResult == null && state.po?.let { po ->
-        val savedUnits = po.lines.mapNotNull { l -> l.countedUnits?.takeIf { it > 0 }?.let { l.id to it } }.toMap()
-        val savedDates = po.lines.mapNotNull { l -> l.countedUseBy?.takeIf { it.isNotBlank() }?.let { l.id to it } }.toMap()
-        state.countedUnits.filterValues { it > 0 } != savedUnits || state.useByDates != savedDates
-    } == true
+    val dirty = state.hasUnsentChanges()
     var confirmLeave by remember { mutableStateOf(false) }
     val requestBack: () -> Unit = { if (dirty) { confirmLeave = true } else { onBack() } }
 
@@ -74,7 +70,7 @@ fun ReceiveScreen(
             onDismissRequest = { confirmLeave = false },
             title = { Text("Discard unsaved counts?") },
             text = { Text("These counts haven't been saved to BackOfficePro. Tap Save Count to keep them.") },
-            confirmButton = { TextButton(onClick = { confirmLeave = false; onBack() }) { Text("Discard") } },
+            confirmButton = { TextButton(onClick = { confirmLeave = false; vm.discardDraft(); onBack() }) { Text("Discard") } },
             dismissButton = { TextButton(onClick = { confirmLeave = false }) { Text("Keep scanning") } }
         )
     }
@@ -150,6 +146,10 @@ fun ReceiveScreen(
                         val hasQtys = true  // saving an empty count clears staged counts
                         Surface(shadowElevation = 8.dp) {
                             Column(Modifier.navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (state.restoredFromDraft) {
+                                    Text("Unsent counts restored on this phone — tap Save Count to send them to BackOfficePro.",
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                }
                                 OutlinedTextField(
                                     value = state.invoiceNumber,
                                     onValueChange = { vm.setInvoiceNumber(it) },

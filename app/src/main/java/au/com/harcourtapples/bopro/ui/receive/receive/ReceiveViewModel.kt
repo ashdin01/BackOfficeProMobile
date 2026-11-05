@@ -8,9 +8,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import au.com.harcourtapples.bopro.api.models.PoLine
 import au.com.harcourtapples.bopro.api.models.PurchaseOrder
 import au.com.harcourtapples.bopro.api.models.CountLine
+import au.com.harcourtapples.bopro.repository.ReceiveDraft
 import au.com.harcourtapples.bopro.repository.ReceiveRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 // Scan overlay state while the camera is open
@@ -46,8 +49,18 @@ data class ReceiveUiState(
     val isLoading: Boolean = true,
     val isSubmitting: Boolean = false,
     val submitResult: SubmitResult? = null,
+    val restoredFromDraft: Boolean = false,
     val error: String? = null
 )
+
+/** True when counts/dates/invoice differ from what the server already has staged for this PO. */
+fun ReceiveUiState.hasUnsentChanges(): Boolean {
+    val po = po ?: return false
+    if (isLoading || submitResult != null) return false
+    val savedUnits = po.lines.mapNotNull { l -> l.countedUnits?.takeIf { it > 0 }?.let { l.id to it } }.toMap()
+    val savedDates = po.lines.mapNotNull { l -> l.countedUseBy?.takeIf { it.isNotBlank() }?.let { l.id to it } }.toMap()
+    return countedUnits.filterValues { it > 0 } != savedUnits || useByDates != savedDates || invoiceNumber != po.invoiceNumber
+}
 
 /** What a scanned code means for a PO line. */
 enum class ScanKind { CARTON, UNIT }
@@ -121,6 +134,20 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
 
     private val _state = MutableStateFlow(ReceiveUiState())
     val state: StateFlow<ReceiveUiState> = _state
+    private var draftKey: String? = null
+
+    init {
+        // Keep an on-phone copy of unsent counts, so a killed app or a stray back doesn't lose them.
+        viewModelScope.launch {
+            _state.map { st -> if (st.hasUnsentChanges()) ReceiveDraft(st.countedUnits.filterValues { it > 0 }, st.useByDates,
+                st.useBySkipped.toList(), st.invoiceNumber) else null }
+                .distinctUntilChanged()
+                .collect { draft ->
+                    val key = draftKey ?: return@collect
+                    if (draft != null) repo.drafts.save(key, draft) else if (_state.value.po != null) repo.drafts.clear(key)
+                }
+        }
+    }
 
     fun loadPo(serverUrl: String, apiKey: String, poNumber: String) {
         viewModelScope.launch {
@@ -130,13 +157,31 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
                 // Resume any counts already staged for this PO
                 val staged = po.lines.mapNotNull { l -> l.countedUnits?.takeIf { it > 0 }?.let { l.id to it } }.toMap()
                 val dates = po.lines.mapNotNull { l -> l.countedUseBy?.takeIf { it.isNotBlank() }?.let { l.id to it } }.toMap()
-                _state.value = _state.value.copy(po = po, countedUnits = staged, useByDates = dates,
-                    invoiceNumber = po.invoiceNumber, isLoading = false)
+                val key = "$serverUrl|${po.id}".also { draftKey = it }
+                // Unsent counts from an earlier visit win over what the server has staged, but only
+                // while the PO can still be received and only for lines that are still on it.
+                val receivable = po.status == "SENT" || po.status == "PARTIAL"
+                val draft = if (receivable) repo.drafts.load(key) else null
+                if (!receivable) repo.drafts.clear(key)
+                val ids = po.lines.map { it.id }.toSet()
+                val dUnits = draft?.units?.filterKeys { it in ids }.orEmpty()
+                if (draft != null && dUnits.isNotEmpty()) {
+                    _state.value = _state.value.copy(po = po, countedUnits = dUnits,
+                        useByDates = draft.useBy.filterKeys { it in ids }, useBySkipped = draft.skipped.filter { it in ids }.toSet(),
+                        invoiceNumber = draft.invoice.ifBlank { po.invoiceNumber }, restoredFromDraft = true, isLoading = false)
+                } else {
+                    if (draft != null) repo.drafts.clear(key)
+                    _state.value = _state.value.copy(po = po, countedUnits = staged, useByDates = dates,
+                        invoiceNumber = po.invoiceNumber, isLoading = false)
+                }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isLoading = false, error = e.message ?: "Failed to load PO")
             }
         }
     }
+
+    /** Drop the unsent counts (user chose Discard). */
+    fun discardDraft() { draftKey?.let { repo.drafts.clear(it) } }
 
     fun startScanning()  { _state.value = _state.value.copy(scan = LineScan.Active, lastScan = null) }
     fun stopScanning()   { _state.value = _state.value.copy(scan = LineScan.Idle) }
@@ -207,6 +252,7 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
             _state.value = _state.value.copy(isSubmitting = true, submitResult = null)
             try {
                 val result = repo.saveCounts(serverUrl, apiKey, po.id, _state.value.invoiceNumber, lines)
+                draftKey?.let { repo.drafts.clear(it) }
                 _state.value = _state.value.copy(isSubmitting = false,
                     submitResult = SubmitResult.Success(result.linesSaved))
             } catch (e: Exception) {
