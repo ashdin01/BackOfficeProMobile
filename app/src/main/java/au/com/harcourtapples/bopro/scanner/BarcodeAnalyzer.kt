@@ -12,6 +12,7 @@ import com.google.zxing.common.HybridBinarizer
 
 class BarcodeAnalyzer(
     includeCartonFormats: Boolean = false,
+    private val cooldownMs: Long = COOLDOWN_MS,
     private val onDetected: (String) -> Unit
 ) : ImageAnalysis.Analyzer {
 
@@ -33,7 +34,7 @@ class BarcodeAnalyzer(
     override fun analyze(image: ImageProxy) {
         try {
             val now = System.currentTimeMillis()
-            if (now - lastScanTime < COOLDOWN_MS) return
+            if (now - lastScanTime < cooldownMs) return
             val rotation = image.imageInfo.rotationDegrees
             val (data, w, h) = extractLuminance(image, rotation)
             val source = PlanarYUVLuminanceSource(data, w, h, 0, 0, w, h, false)

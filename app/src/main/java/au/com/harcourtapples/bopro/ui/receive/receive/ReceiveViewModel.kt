@@ -59,10 +59,45 @@ private fun digitsKey(code: String) = code.trim().trimStart('0')
  * not in the scanned text. Returns just the GTIN for those; any other code is unchanged.
  * Real EAN-13 / ITF-14 codes are 13-14 digits, so the 16+ digit length rules out confusion.
  */
-fun extractGtin(raw: String): String {
+fun extractGtin(raw: String): String = parseGs1(raw)?.gtin ?: raw
+
+/** What a GS1-128 carton label carries that we use: the GTIN-14 and an optional expiry date (ISO). */
+data class Gs1Scan(val gtin: String, val expiryIso: String?)
+
+/**
+ * Parse a GS1-128 scan: "01" + GTIN-14, then optionally (15) best-before or (17) use-by,
+ * both fixed-length YYMMDD so no separator is needed. Other AIs (10 batch, 37 count...) end
+ * the walk, since they are variable length. Returns null if this isn't a GS1-128 string.
+ */
+fun parseGs1(raw: String): Gs1Scan? {
     val code = raw.trim().replace("(", "").replace(")", "")
-    return if (code.length >= 16 && code.startsWith("01") && code.take(16).all(Char::isDigit))
-        code.substring(2, 16) else raw
+    if (code.length < 16 || !code.startsWith("01") || !code.take(16).all(Char::isDigit)) return null
+    var expiry: String? = null
+    var i = 16
+    while (i + 8 <= code.length) {
+        val ai = code.substring(i, i + 2)
+        if (ai != "15" && ai != "17") break
+        val ymd = code.substring(i + 2, i + 8)
+        if (!ymd.all(Char::isDigit)) break
+        val iso = gs1DateToIso(ymd)
+        // If both are present prefer use-by (17): it is the hard limit.
+        if (iso != null && (expiry == null || ai == "17")) expiry = iso
+        i += 8
+    }
+    return Gs1Scan(code.substring(2, 16), expiry)
+}
+
+/** GS1 YYMMDD -> ISO. Day "00" means the last day of that month. Null if not a real date. */
+fun gs1DateToIso(yymmdd: String): String? {
+    val y = 2000 + yymmdd.substring(0, 2).toInt()
+    val m = yymmdd.substring(2, 4).toInt()
+    var d = yymmdd.substring(4, 6).toInt()
+    if (m !in 1..12) return null
+    val last = java.util.Calendar.getInstance().apply { clear(); set(y, m - 1, 1) }
+        .getActualMaximum(java.util.Calendar.DAY_OF_MONTH)
+    if (d == 0) d = last
+    if (d > last) return null
+    return "%04d-%02d-%02d".format(java.util.Locale.US, y, m, d)
 }
 
 /**
@@ -120,9 +155,17 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
         val add = if (kind == ScanKind.CARTON) maxOf(1, line.packQty) else 1
         val total = (_state.value.countedUnits[line.id] ?: 0) + add
         val st = _state.value
-        val needsDate = line.trackUseBy == true && line.id !in st.useByDates && line.id !in st.useBySkipped
+        // A date printed on the label fills the line automatically (tracked groups only).
+        // One date is stored per line, so if cartons differ we keep the earliest.
+        val scanned = if (line.trackUseBy == true) parseGs1(code)?.expiryIso else null
+        val existing = st.useByDates[line.id]
+        val dates = if (scanned != null && (existing == null || scanned < existing))
+            st.useByDates + (line.id to scanned) else st.useByDates
+        val needsDate = line.trackUseBy == true && line.id !in dates && line.id !in st.useBySkipped
         _state.value = st.copy(
             countedUnits = st.countedUnits + (line.id to total),
+            useByDates = dates,
+            useBySkipped = if (scanned != null) st.useBySkipped - line.id else st.useBySkipped,
             lastScan = ScanFlash(line.description, add, total, kind == ScanKind.CARTON),
             scan = if (needsDate) LineScan.UseBy(line) else st.scan
         )

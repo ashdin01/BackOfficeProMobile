@@ -58,7 +58,7 @@ fun ReceiveScreen(
     Box(Modifier.fillMaxSize()) {
         if (scanning) {
             // ── Camera overlay ────────────────────────────────────────────────
-            CameraPreview(isAnalyzing = state.scan is LineScan.Active, includeCartonFormats = true, onBarcodeDetected = { vm.onBarcodeDetected(it) })
+            CameraPreview(isAnalyzing = state.scan is LineScan.Active, includeCartonFormats = true, cooldownMs = 3000L, onBarcodeDetected = { vm.onBarcodeDetected(it) })
 
             Box(Modifier.fillMaxSize()) {
                 Box(Modifier.size(260.dp).align(Alignment.Center).border(2.dp, Color.White, RoundedCornerShape(8.dp)))
