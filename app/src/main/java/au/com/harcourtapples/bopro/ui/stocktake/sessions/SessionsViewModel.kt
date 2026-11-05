@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import au.com.harcourtapples.bopro.api.ApiClient
 import au.com.harcourtapples.bopro.api.models.Department
+import au.com.harcourtapples.bopro.api.models.ProductGroup
 import au.com.harcourtapples.bopro.api.models.Session
 import au.com.harcourtapples.bopro.repository.StocktakeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 data class SessionsUiState(
     val sessions: List<Session> = emptyList(),
     val departments: List<Department> = emptyList(),
+    val groups: List<ProductGroup> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -41,15 +43,27 @@ class SessionsViewModel(private val repo: StocktakeRepository) : ViewModel() {
         }
     }
 
-    fun createSession(serverUrl: String, offline: Boolean, label: String, deptId: Int?, apiKey: String = "", onSuccess: (Int) -> Unit) {
+    fun createSession(serverUrl: String, offline: Boolean, label: String, deptId: Int?, groupId: Int? = null, apiKey: String = "", onSuccess: (Int) -> Unit) {
         viewModelScope.launch {
             try {
-                val id = repo.createSession(offline, serverUrl, apiKey, label, deptId)
+                val id = repo.createSession(offline, serverUrl, apiKey, label, deptId, groupId)
                 onSuccess(id)
                 load(serverUrl, offline, apiKey)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = e.message)
             }
+        }
+    }
+
+    /** Groups belonging to the chosen department (empty when "All Departments"). */
+    fun loadGroups(serverUrl: String, apiKey: String, deptId: Int?) {
+        if (deptId == null) { _state.value = _state.value.copy(groups = emptyList()); return }
+        viewModelScope.launch {
+            val groups = try {
+                val r = ApiClient.service(serverUrl, apiKey).getDepartmentGroups(deptId)
+                if (r.isSuccessful) r.body() ?: emptyList() else emptyList()
+            } catch (_: Exception) { emptyList() }
+            _state.value = _state.value.copy(groups = groups)
         }
     }
 

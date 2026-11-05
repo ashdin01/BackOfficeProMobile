@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import au.com.harcourtapples.bopro.BoproApplication
 import au.com.harcourtapples.bopro.api.models.Department
+import au.com.harcourtapples.bopro.api.models.ProductGroup
 import au.com.harcourtapples.bopro.api.models.Session
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,7 +85,9 @@ fun SessionsScreen(
                             headlineContent = { Text(session.label, fontWeight = FontWeight.SemiBold) },
                             supportingContent = {
                                 Column {
-                                    session.deptName?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                                    listOfNotNull(session.deptName, session.groupName).takeIf { it.isNotEmpty() }?.let {
+                                        Text(it.joinToString(" › "), style = MaterialTheme.typography.bodySmall)
+                                    }
                                     Text("${session.lineCount} items  •  ${session.startedAt.take(10)}",
                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -104,11 +107,13 @@ fun SessionsScreen(
     if (showNewDialog) {
         NewSessionDialog(
             departments = if (offline) emptyList() else state.departments,
+            groups = state.groups,
             offline = offline,
-            onDismiss = { showNewDialog = false },
-            onCreate = { label, deptId ->
+            onDeptChosen = { vm.loadGroups(serverUrl, apiKey, it) },
+            onDismiss = { showNewDialog = false; vm.loadGroups(serverUrl, apiKey, null) },
+            onCreate = { label, deptId, groupId ->
                 showNewDialog = false
-                vm.createSession(serverUrl, offline, label, deptId, apiKey = apiKey, onSuccess = onOpenSession)
+                vm.createSession(serverUrl, offline, label, deptId, groupId, apiKey = apiKey, onSuccess = onOpenSession)
             }
         )
     }
@@ -116,10 +121,13 @@ fun SessionsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NewSessionDialog(departments: List<Department>, offline: Boolean, onDismiss: () -> Unit, onCreate: (String, Int?) -> Unit) {
+private fun NewSessionDialog(departments: List<Department>, groups: List<ProductGroup>, offline: Boolean,
+                             onDeptChosen: (Int?) -> Unit, onDismiss: () -> Unit, onCreate: (String, Int?, Int?) -> Unit) {
     var label by remember { mutableStateOf("") }
     var selectedDept by remember { mutableStateOf<Department?>(null) }
+    var selectedGroup by remember { mutableStateOf<ProductGroup?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    var groupExpanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -134,16 +142,29 @@ private fun NewSessionDialog(departments: List<Department>, offline: Boolean, on
                             label = { Text("Department (optional)") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                             modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth())
                         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            DropdownMenuItem(text = { Text("All Departments") }, onClick = { selectedDept = null; expanded = false })
+                            DropdownMenuItem(text = { Text("All Departments") }, onClick = { selectedDept = null; selectedGroup = null; onDeptChosen(null); expanded = false })
                             departments.forEach { dept ->
-                                DropdownMenuItem(text = { Text(dept.name) }, onClick = { selectedDept = dept; expanded = false })
+                                DropdownMenuItem(text = { Text(dept.name) }, onClick = { selectedDept = dept; selectedGroup = null; onDeptChosen(dept.id); expanded = false })
+                            }
+                        }
+                    }
+                    if (selectedDept != null && groups.isNotEmpty()) {
+                        ExposedDropdownMenuBox(expanded = groupExpanded, onExpandedChange = { groupExpanded = it }) {
+                            OutlinedTextField(value = selectedGroup?.name ?: "All Groups", onValueChange = {}, readOnly = true,
+                                label = { Text("Group (optional)") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(groupExpanded) },
+                                modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth())
+                            ExposedDropdownMenu(expanded = groupExpanded, onDismissRequest = { groupExpanded = false }) {
+                                DropdownMenuItem(text = { Text("All Groups") }, onClick = { selectedGroup = null; groupExpanded = false })
+                                groups.forEach { g ->
+                                    DropdownMenuItem(text = { Text(g.name) }, onClick = { selectedGroup = g; groupExpanded = false })
+                                }
                             }
                         }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { if (label.isNotBlank()) onCreate(label.trim(), selectedDept?.id) }, enabled = label.isNotBlank()) { Text("Create") } },
+        confirmButton = { TextButton(onClick = { if (label.isNotBlank()) onCreate(label.trim(), selectedDept?.id, selectedGroup?.id) }, enabled = label.isNotBlank()) { Text("Create") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }

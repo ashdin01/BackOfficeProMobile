@@ -51,7 +51,7 @@ fun ScanScreen(
     LaunchedEffect(state) {
         when (state) {
             is ScanState.ProductFound, is ScanState.OfflineReady -> feedback.confirm()
-            is ScanState.NotFound, is ScanState.Error -> feedback.reject()
+            is ScanState.NotFound, is ScanState.Error, is ScanState.OutOfGroup -> feedback.reject()
             else -> {}
         }
     }
@@ -94,6 +94,9 @@ fun ScanScreen(
                         onConfirm = { newTotal -> vm.submitCount(sessionId, s.barcode, newTotal - s.existingQty, serverUrl, offline, apiKey = apiKey) },
                         onCancel = { vm.reset() })
                     is ScanState.NotFound -> SimpleSheet(title = "Not Found", message = "Barcode ${s.barcode} is not in BackOfficePro.",
+                        onDismiss = { vm.reset() })
+                    is ScanState.OutOfGroup -> SimpleSheet(title = "Not in this group",
+                        message = "${s.description} is not in ${s.groupName}, so it can't be counted in this session.",
                         onDismiss = { vm.reset() })
                     is ScanState.OfflineReady -> OfflineSheet(barcode = s.barcode, existingQty = s.existingQty,
                         onConfirm = { desc, newTotal -> vm.submitCount(sessionId, s.barcode, newTotal - s.existingQty, serverUrl, offline, apiKey, desc) },

@@ -14,6 +14,9 @@ interface ApiService {
     @GET("api/v1/departments")
     suspend fun getDepartments(): Response<List<Department>>
 
+    @GET("api/v1/departments/{id}/groups")
+    suspend fun getDepartmentGroups(@Path("id") deptId: Int): Response<List<ProductGroup>>
+
     // ── Stocktake ──────────────────────────────────────────────────────────────
 
     @GET("api/v1/products/{barcode}")

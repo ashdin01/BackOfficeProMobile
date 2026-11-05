@@ -80,6 +80,10 @@ fun ReceiveScreen(
                         Text("+${flash.added}${if (flash.isCarton) " (carton)" else ""} · ${flash.description}",
                             color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2)
                         Text("Counted so far: ${flash.total} units", color = Color.White)
+                        // Shows what the camera actually decoded, to diagnose labels without a readable date.
+                        Text(if (flash.scannedDate != null) "Date read: ${prettyDate(flash.scannedDate)}" else "No date in barcode",
+                            color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
+                        Text("Read: ${flash.raw}", color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -121,7 +125,7 @@ fun ReceiveScreen(
                     if (state.po != null && state.submitResult == null) {
                         val hasQtys = true  // saving an empty count clears staged counts
                         Surface(shadowElevation = 8.dp) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(Modifier.navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
                                     value = state.invoiceNumber,
                                     onValueChange = { vm.setInvoiceNumber(it) },
@@ -266,7 +270,7 @@ private fun PoLineRow(line: PoLine, countedUnits: Int, useBy: String?, onEdit: (
                     Text("Already received: $previousUnits units", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (line.trackUseBy == true && hasAny) {
+                if ((line.trackUseBy == true || useBy != null) && hasAny) {
                     Text(if (useBy != null) "Use-by: ${prettyDate(useBy)}" else "⚠ Use-by date needed",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (useBy != null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)

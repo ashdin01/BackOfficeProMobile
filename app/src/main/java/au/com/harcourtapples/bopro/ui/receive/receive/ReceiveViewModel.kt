@@ -24,7 +24,8 @@ sealed class LineScan {
 }
 
 /** Last auto-added scan, shown as a banner while the camera keeps running. */
-data class ScanFlash(val description: String, val added: Int, val total: Int, val isCarton: Boolean)
+data class ScanFlash(val description: String, val added: Int, val total: Int, val isCarton: Boolean,
+                     val raw: String = "", val scannedDate: String? = null)
 
 sealed class SubmitResult {
     data class Success(val linesSaved: Int) : SubmitResult()
@@ -155,9 +156,9 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
         val add = if (kind == ScanKind.CARTON) maxOf(1, line.packQty) else 1
         val total = (_state.value.countedUnits[line.id] ?: 0) + add
         val st = _state.value
-        // A date printed on the label fills the line automatically (tracked groups only).
+        // A date printed on the label fills the line automatically, whether or not the group is flagged to track use-by.
         // One date is stored per line, so if cartons differ we keep the earliest.
-        val scanned = if (line.trackUseBy == true) parseGs1(code)?.expiryIso else null
+        val scanned = parseGs1(code)?.expiryIso
         val existing = st.useByDates[line.id]
         val dates = if (scanned != null && (existing == null || scanned < existing))
             st.useByDates + (line.id to scanned) else st.useByDates
@@ -166,7 +167,7 @@ class ReceiveViewModel(private val repo: ReceiveRepository) : ViewModel() {
             countedUnits = st.countedUnits + (line.id to total),
             useByDates = dates,
             useBySkipped = if (scanned != null) st.useBySkipped - line.id else st.useBySkipped,
-            lastScan = ScanFlash(line.description, add, total, kind == ScanKind.CARTON),
+            lastScan = ScanFlash(line.description, add, total, kind == ScanKind.CARTON, raw = code, scannedDate = scanned),
             scan = if (needsDate) LineScan.UseBy(line) else st.scan
         )
     }

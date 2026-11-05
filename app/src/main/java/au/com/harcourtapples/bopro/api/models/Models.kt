@@ -1,10 +1,13 @@
 package au.com.harcourtapples.bopro.api.models
 
+import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 
 data class Department(val id: Int, val code: String, val name: String)
+
+data class ProductGroup(val id: Int, val code: String, val name: String)
 
 // ── Stocktake ─────────────────────────────────────────────────────────────────
 
@@ -16,8 +19,15 @@ data class Product(
     val unit: String,
     val brand: String?,
     @SerializedName("dept_name")   val deptName: String?,
-    @SerializedName("soh_qty")     val sohQty: Double
-)
+    @SerializedName("group_name")  val groupName: String? = null,
+    @SerializedName("soh_qty")     val sohQty: Double,
+    // Raw so "server didn't send group_id" (older BackOfficePro; null) differs from "product has
+    // no group" (JSON null). Stocktake group blocking only applies when the server sent it.
+    @SerializedName("group_id")     val groupIdRaw: JsonElement? = null
+) {
+    val groupInfoKnown: Boolean get() = groupIdRaw != null
+    val groupId: Int? get() = groupIdRaw?.takeIf { it.isJsonPrimitive }?.asInt
+}
 
 data class Session(
     val id: Int,
@@ -27,12 +37,14 @@ data class Session(
     @SerializedName("started_at")  val startedAt: String,
     @SerializedName("closed_at")   val closedAt: String?,
     @SerializedName("line_count")  val lineCount: Int,
-    val notes: String?
+    val notes: String?,
+    @SerializedName("group_id")    val groupId: Int? = null
 )
 
 data class CreateSessionRequest(
     val label: String,
     @SerializedName("department_id") val departmentId: Int?,
+    @SerializedName("group_id")      val groupId: Int? = null,
     val notes: String = "",
     @SerializedName("created_by")    val createdBy: String = "Android"
 )

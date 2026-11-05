@@ -13,8 +13,8 @@ android {
         applicationId = "au.com.harcourtapples.bopro"
         minSdk        = 24
         targetSdk     = 35
-        versionCode   = 9
-        versionName   = "1.5.0"
+        versionCode   = 10
+        versionName   = "1.5.1"
     }
 
     buildTypes {
