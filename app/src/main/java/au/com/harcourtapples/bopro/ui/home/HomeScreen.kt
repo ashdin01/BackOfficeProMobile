@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -21,6 +22,7 @@ fun HomeScreen(
     onStocktake: () -> Unit,
     onReceive: () -> Unit,
     onOrderPrep: () -> Unit,
+    onWarehouseOrder: () -> Unit,
     onStockCheck: () -> Unit,
     onSettings: () -> Unit
 ) {
@@ -79,6 +81,14 @@ fun HomeScreen(
                 title = "Prepare Order",
                 description = "Pick a supplier, count what's on hand,\nand build a market order from min/max levels.",
                 onClick = onOrderPrep,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            FeatureCard(
+                icon = { Icon(Icons.Default.LocalShipping, null, modifier = Modifier.size(40.dp)) },
+                title = "Warehouse Order",
+                description = "Scan items to build a warehouse-to-shop\ntransfer order. Printed from the PC.",
+                onClick = onWarehouseOrder,
                 modifier = Modifier.fillMaxWidth()
             )
         }

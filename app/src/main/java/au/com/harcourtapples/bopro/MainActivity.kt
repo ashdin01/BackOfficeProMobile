@@ -12,6 +12,7 @@ import au.com.harcourtapples.bopro.api.ApiClient
 import au.com.harcourtapples.bopro.api.models.Supplier
 import au.com.harcourtapples.bopro.ui.home.HomeScreen
 import au.com.harcourtapples.bopro.ui.orderprep.prep.OrderPrepScreen
+import au.com.harcourtapples.bopro.ui.warehouse.WarehouseOrderScreen
 import au.com.harcourtapples.bopro.ui.orderprep.suppliers.SupplierListScreen
 import au.com.harcourtapples.bopro.ui.receive.list.PoListScreen
 import au.com.harcourtapples.bopro.ui.receive.receive.ReceiveScreen
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
                             onStocktake  = { nav.navigate("stocktake/sessions") },
                             onReceive    = { nav.navigate("receive/list") },
                             onOrderPrep  = { nav.navigate("orderprep/suppliers") },
+                            onWarehouseOrder = { nav.navigate("warehouse/order") },
                             onStockCheck = { nav.navigate("stock/check") },
                             onSettings   = { nav.navigate("settings") }
                         )
@@ -121,6 +123,12 @@ class MainActivity : ComponentActivity() {
                             apiKey    = apiKey,
                             onBack    = { nav.popBackStack() }
                         )
+                    }
+
+                    // ── Warehouse Order ────────────────────────────────────────
+
+                    composable("warehouse/order") {
+                        WarehouseOrderScreen(serverUrl = serverUrl, apiKey = apiKey, onBack = { nav.popBackStack() })
                     }
 
                     // ── Order Prep ─────────────────────────────────────────────

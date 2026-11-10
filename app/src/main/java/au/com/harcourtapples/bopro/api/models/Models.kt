@@ -160,6 +160,26 @@ data class CreateOrderPrepDraftResponse(
     @SerializedName("line_count") val lineCount: Int
 )
 
+// ── Warehouse Order ───────────────────────────────────────────────────────────
+
+data class WarehouseOrderItem(
+    val barcode: String,
+    val description: String,
+    val unit: String?,
+    @SerializedName("on_hand") val onHand: Double = 0.0
+)
+
+data class WarehouseOrderLine(val barcode: String, val qty: Double)
+
+data class SubmitWarehouseOrderRequest(val notes: String = "", val lines: List<WarehouseOrderLine>)
+
+data class SubmitWarehouseOrderResponse(
+    @SerializedName("line_count")  val lineCount: Int,
+    @SerializedName("total_units") val totalUnits: Double,
+    val csv: String,
+    val pdf: String
+)
+
 // ── Stock check / adjust ───────────────────────────────────────────────────────
 
 data class StockInfo(
