@@ -84,13 +84,13 @@ fun ReceiveScreen(
                 Box(Modifier.size(260.dp).align(Alignment.Center).border(2.dp, Color.White, RoundedCornerShape(8.dp)))
             }
 
-            IconButton(onClick = { vm.stopScanning() }, modifier = Modifier.align(Alignment.TopStart).padding(16.dp)) {
+            IconButton(onClick = { vm.stopScanning() }, modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(16.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "Stop scanning", tint = Color.White)
             }
 
             if (state.scan is LineScan.Active) {
                 val flash = state.lastScan
-                Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 48.dp, start = 16.dp, end = 16.dp)
+                Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 48.dp, start = 16.dp, end = 16.dp)
                     .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
@@ -145,7 +145,7 @@ fun ReceiveScreen(
                     if (state.po != null && state.submitResult == null) {
                         val hasQtys = true  // saving an empty count clears staged counts
                         Surface(shadowElevation = 8.dp) {
-                            Column(Modifier.navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(Modifier.imePadding().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 if (state.restoredFromDraft) {
                                     Text("Unsent counts restored on this phone — tap Save Count to send them to BackOfficePro.",
                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)

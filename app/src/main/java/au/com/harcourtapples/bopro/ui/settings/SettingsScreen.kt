@@ -1,6 +1,8 @@
 package au.com.harcourtapples.bopro.ui.settings
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,7 +40,7 @@ fun SettingsScreen(store: SettingsStore, onBack: () -> Unit) {
         )
     }) { padding ->
         Column(
-            Modifier.padding(padding).padding(24.dp).fillMaxWidth(),
+            Modifier.padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(24.dp).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text("Server Connection", style = MaterialTheme.typography.titleMedium)

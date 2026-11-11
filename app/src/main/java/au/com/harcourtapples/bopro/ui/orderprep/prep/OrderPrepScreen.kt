@@ -53,7 +53,7 @@ fun OrderPrepScreen(
             if (state.items.isNotEmpty() && state.submitResult == null) {
                 val includedCount = state.edits.count { (_, e) -> e.included && e.cartons > 0 }
                 Surface(shadowElevation = 8.dp) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.imePadding().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = state.notes,
                             onValueChange = { vm.setNotes(it) },

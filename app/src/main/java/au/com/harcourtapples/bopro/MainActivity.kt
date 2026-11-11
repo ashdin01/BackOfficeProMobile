@@ -31,10 +31,17 @@ class MainActivity : ComponentActivity() {
         val store = (application as BoproApplication).settingsStore
         setContent {
             BoproTheme {
-                val serverUrl          by store.serverUrl.collectAsState(initial = SettingsStore.DEFAULT_URL)
-                val apiKey             by store.apiKey.collectAsState(initial = "")
-                val offline            by store.offlineMode.collectAsState(initial = false)
-                val trustedFingerprint by store.trustedCertFingerprint.collectAsState(initial = "")
+                // Settings load asynchronously from DataStore. Screens must not compose with
+                // placeholder defaults: after a rotation (activity recreate) the default URL
+                // would be used first, fail to connect and show an error. Wait for real values.
+                val savedUrl         by store.serverUrl.collectAsState<String?>(initial = null)
+                val savedKey         by store.apiKey.collectAsState<String?>(initial = null)
+                val savedOffline     by store.offlineMode.collectAsState<Boolean?>(initial = null)
+                val savedFingerprint by store.trustedCertFingerprint.collectAsState<String?>(initial = null)
+                val serverUrl          = savedUrl         ?: return@BoproTheme
+                val apiKey             = savedKey         ?: return@BoproTheme
+                val offline            = savedOffline     ?: return@BoproTheme
+                val trustedFingerprint = savedFingerprint ?: return@BoproTheme
 
                 LaunchedEffect(trustedFingerprint) {
                     ApiClient.setTrustedFingerprint(trustedFingerprint.ifBlank { null })

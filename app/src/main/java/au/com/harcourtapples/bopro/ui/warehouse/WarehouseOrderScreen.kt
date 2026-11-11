@@ -80,7 +80,7 @@ fun WarehouseOrderScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) 
         bottomBar = {
             if (!state.scanning && success == null && state.items.isNotEmpty()) {
                 Surface(shadowElevation = 8.dp) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.imePadding().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             "${state.lineCount} item${if (state.lineCount != 1) "s" else ""} · ${fmt(state.totalUnits)} units",
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
