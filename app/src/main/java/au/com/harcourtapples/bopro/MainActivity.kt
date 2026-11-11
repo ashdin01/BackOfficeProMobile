@@ -34,10 +34,10 @@ class MainActivity : ComponentActivity() {
                 // Settings load asynchronously from DataStore. Screens must not compose with
                 // placeholder defaults: after a rotation (activity recreate) the default URL
                 // would be used first, fail to connect and show an error. Wait for real values.
-                val savedUrl         by store.serverUrl.collectAsState<String?>(initial = null)
-                val savedKey         by store.apiKey.collectAsState<String?>(initial = null)
-                val savedOffline     by store.offlineMode.collectAsState<Boolean?>(initial = null)
-                val savedFingerprint by store.trustedCertFingerprint.collectAsState<String?>(initial = null)
+                val savedUrl         by store.serverUrl.collectAsState<String, String?>(initial = null)
+                val savedKey         by store.apiKey.collectAsState<String, String?>(initial = null)
+                val savedOffline     by store.offlineMode.collectAsState<Boolean, Boolean?>(initial = null)
+                val savedFingerprint by store.trustedCertFingerprint.collectAsState<String, String?>(initial = null)
                 val serverUrl          = savedUrl         ?: return@BoproTheme
                 val apiKey             = savedKey         ?: return@BoproTheme
                 val offline            = savedOffline     ?: return@BoproTheme
