@@ -64,13 +64,19 @@ class WarehouseOrderViewModel(private val repo: WarehouseOrderRepository) : View
     fun dismissScanResult() { _state.value = _state.value.copy(scanResult = null) }
 
     /** Called for every camera detection; ignored while a result is awaiting the user. */
-    fun onBarcodeDetected(barcode: String) {
+    fun onBarcodeDetected(raw: String) {
         val s = _state.value
+        // GS1-128 "01"+GTIN-14, or a GTIN-14 with leading 0 (= the EAN-13 inside) -> plain product barcode
+        var barcode = raw
+        if (barcode.length >= 16 && barcode.startsWith("01") && barcode.take(16).all(Char::isDigit)) barcode = barcode.substring(2, 16)
+        if (barcode.length == 14 && barcode.startsWith("0") && barcode.all(Char::isDigit) && s.items.none { it.barcode == barcode }) barcode = barcode.substring(1)
         if (!s.scanning || s.scanResult != null) return
+        // Carton barcode (carton_sku) resolves to the same product line
         val item = s.items.firstOrNull { it.barcode == barcode }
+            ?: s.items.firstOrNull { !it.cartonSku.isNullOrBlank() && it.cartonSku == barcode }
         _state.value = s.copy(
             scanResult = if (item == null) WarehouseScanResult.NotListed(barcode)
-                         else WarehouseScanResult.Listed(item, s.qty[barcode] ?: 0.0)
+                         else WarehouseScanResult.Listed(item, s.qty[item.barcode] ?: 0.0)
         )
     }
 

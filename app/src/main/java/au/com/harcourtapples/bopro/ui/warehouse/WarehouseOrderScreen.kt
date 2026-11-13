@@ -82,7 +82,7 @@ fun WarehouseOrderScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) 
                 Surface(shadowElevation = 8.dp) {
                     Column(Modifier.imePadding().navigationBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            "${state.lineCount} item${if (state.lineCount != 1) "s" else ""} · ${fmt(state.totalUnits)} units",
+                            "${state.lineCount} item${if (state.lineCount != 1) "s" else ""} · ${fmt(state.totalUnits)} cartons",
                             style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
                         )
                         OutlinedTextField(
@@ -127,7 +127,7 @@ fun WarehouseOrderScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) 
                 Text("Order sent!", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "${success.lineCount} item${if (success.lineCount != 1) "s" else ""}, ${fmt(success.totalUnits)} units.\n" +
+                    "${success.lineCount} item${if (success.lineCount != 1) "s" else ""}, ${fmt(success.totalUnits)} cartons.\n" +
                         "Saved to the PC's Downloads folder:\n${success.pdf}\n${success.csv}",
                     textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -160,14 +160,14 @@ fun WarehouseOrderScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) 
                         Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) { Text("Grant Permission") }
                     }
                 } else {
-                    CameraPreview(isAnalyzing = state.scanResult == null, onBarcodeDetected = vm::onBarcodeDetected)
+                    CameraPreview(isAnalyzing = state.scanResult == null, includeCartonFormats = true, onBarcodeDetected = vm::onBarcodeDetected)
                     Box(Modifier.size(260.dp).align(Alignment.Center).border(2.dp, Color.White, RoundedCornerShape(8.dp)))
                     Column(
                         Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "${state.lineCount} item${if (state.lineCount != 1) "s" else ""} · ${fmt(state.totalUnits)} units on order",
+                            "${state.lineCount} item${if (state.lineCount != 1) "s" else ""} · ${fmt(state.totalUnits)} cartons on order",
                             color = Color.White,
                             modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -208,8 +208,8 @@ fun WarehouseOrderScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) 
     when (val r = state.scanResult) {
         is WarehouseScanResult.Listed -> QtyDialog(
             title = r.item.description,
-            message = if (r.currentQty > 0) "Already on order: ${fmt(r.currentQty)}\nEnter the quantity to ADD (e.g. from the second location)."
-                      else "Enter the quantity to order.",
+            message = if (r.currentQty > 0) "Already on order: ${fmt(r.currentQty)}\nEnter the cartons to ADD (e.g. from the second location)."
+                      else "Enter the number of cartons to order.",
             initial = "1", confirmLabel = if (r.currentQty > 0) "Add to order" else "Add",
             onConfirm = { vm.addQty(r.item.barcode, it) }, onCancel = vm::dismissScanResult
         )
@@ -237,7 +237,7 @@ fun WarehouseOrderScreen(serverUrl: String, apiKey: String, onBack: () -> Unit) 
         AlertDialog(
             onDismissRequest = { confirmSend = false },
             title = { Text("Send warehouse order?") },
-            text = { Text("${state.lineCount} item${if (state.lineCount != 1) "s" else ""}, ${fmt(state.totalUnits)} units.\nA CSV and PDF will be saved on the PC.") },
+            text = { Text("${state.lineCount} item${if (state.lineCount != 1) "s" else ""}, ${fmt(state.totalUnits)} cartons.\nA CSV and PDF will be saved on the PC.") },
             confirmButton = { TextButton(onClick = { confirmSend = false; vm.submit(serverUrl, apiKey) }) { Text("Send") } },
             dismissButton = { TextButton(onClick = { confirmSend = false }) { Text("Cancel") } }
         )

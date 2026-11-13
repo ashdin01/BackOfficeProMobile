@@ -166,7 +166,8 @@ data class WarehouseOrderItem(
     val barcode: String,
     val description: String,
     val unit: String?,
-    @SerializedName("on_hand") val onHand: Double = 0.0
+    @SerializedName("on_hand") val onHand: Double = 0.0,
+    @SerializedName("carton_sku") val cartonSku: String? = null
 )
 
 data class WarehouseOrderLine(val barcode: String, val qty: Double)
